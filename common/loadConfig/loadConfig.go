@@ -1,0 +1,5 @@
+package loadConfig
+
+func LoadConfig() {
+		
+}
