@@ -1,7 +1,16 @@
 package httprouters
 
-import "net/http"
+import (
+	"github.com/go-chi/chi/v5"
+)
 
-type Router interface {
-	NewDefaultRouter() http.Handler
+type RouterI interface {
+	NewChiDefaultRouter() *chi.Mux
+}
+
+type Router struct {
+}
+
+func NewRouter() RouterI {
+	return &Router{}
 }

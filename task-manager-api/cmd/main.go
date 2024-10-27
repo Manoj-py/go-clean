@@ -1,29 +1,38 @@
 package main
 
 import (
+	"github.com/Manoj-py/backend-architecture/common/environment"
 	"github.com/Manoj-py/backend-architecture/common/sqlConnectors"
+	"github.com/Manoj-py/backend-architecture/task-manager-api/cmd/config"
 	db "github.com/Manoj-py/backend-architecture/task-manager-api/internal/db/sqlc"
 	"github.com/Manoj-py/backend-architecture/task-manager-api/internal/http/handlers"
+	"github.com/Manoj-py/backend-architecture/task-manager-api/internal/service"
 	"log/slog"
 	"net/http"
 
 	httprouters "github.com/Manoj-py/backend-architecture/common/httprouter"
-	"github.com/Manoj-py/backend-architecture/task-manager-api/internal/http/routers"
+	"github.com/Manoj-py/backend-architecture/task-manager-api/internal/http/routes"
 )
 
-type Config struct {
+type Server struct {
 	routes http.Handler
+	config config.Config
 }
 
 func main() {
 	//initialise the config
+	environmentI := environment.NewLoadConfig()
+	env := config.MustLoadConfig(environmentI)
 
 	//initialise the sql-db
-	conn := sqlConnectors.CreateNewPostgresConnection("postgresql://postgres:password@localhost:5432/taskmanager?sslmode=disable")
+	conn := sqlConnectors.CreateNewPostgresConnection(env.POSTGRES_URL)
 	defer conn.Close()
 
 	//initialise for sqlc
-	store := db.NewStore(conn)
+	repo := db.NewStore(conn)
+
+	//initialise the service layer and give repo to it
+	svc := service.NewService(repo)
 
 	//initialise the redis-db
 
@@ -31,34 +40,17 @@ func main() {
 
 	// initialise the token
 
-	//initialise the event handler if required
-
-	// initialised the router
+	//initialise the message-broker handler if required
 
 	// initialised the handler
-	handler := handlers.NewHandler(store)
+	handler := handlers.NewHandler(repo, svc)
 
-	mux := &httprouters.ChiRouter{}
-	routes := routers.Routes(mux, handler)
+	// initialised the router
+	router := httprouters.NewRouter()
+	mux := routes.Routes(router, handler)
 
-	if err := listenAndServe(routes); err != nil {
+	if err := listenAndServe(mux, env); err != nil {
 		slog.Error(err.Error())
 		return
 	}
-}
-
-func listenAndServe(routes http.Handler) error {
-	server := http.Server{
-		Addr:    ":8083",
-		Handler: routes,
-	}
-
-	slog.Info("Started the ther server on port:" + "8083")
-	err := server.ListenAndServe()
-	if err != nil {
-		slog.Error("Error in starting the server")
-		return err
-	}
-	return nil
-
 }

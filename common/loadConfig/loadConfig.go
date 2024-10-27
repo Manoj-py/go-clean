@@ -1,5 +1,0 @@
-package loadConfig
-
-func LoadConfig() {
-		
-}
